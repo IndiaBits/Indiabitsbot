@@ -1,8 +1,12 @@
 const TelegramBot = require('node-telegram-bot-api');
 const token = "TokenGoesHere";
 const bot = new TelegramBot(token, {polling: true});
-let prevMsgId = 0;
 
+let prevMsgId = 0;
+const modGrpId = 0, botGrpId = 0;
+
+// Restricts user if mute parameter is true, else completely mutes
+// the user.
 function restrictMem(grpId, memId, time, mute = true) {
     
     let t = Math.floor((new Date().getTime()) / 1000) + (time * 24 * 60 * 60);
@@ -16,14 +20,20 @@ function restrictMem(grpId, memId, time, mute = true) {
 	});
 }
 
+// Bans the user if ban parameter is true, else restricts/mutes the
+// user.
 function muteOban(msg, match, ban = false) {
+    
+    const grpId = msg.chat.id;
+    const msgId = msg.message_id;
 
     if(msg.hasOwnProperty("reply_to_message")) {
 	
 	const fromId = msg.from.id;
-	const grpId = msg.reply_to_message.chat.id;
+	const memGrpId = msg.reply_to_message.chat.id;
+	const memMsgId = msg.reply_to_message.message_id; 
 
-	bot.getChatMember(grpId, fromId)
+	bot.getChatMember(memGrpId, fromId)
 	.then((data) => {
 	    if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
 		const fromMsgId = msg.message_id;
@@ -31,7 +41,7 @@ function muteOban(msg, match, ban = false) {
 		const memId = msg.reply_to_message.from.id;
 		const memMsgId = msg.reply_to_message.message_id; 
 
-		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, Number(match[2]), false);
+		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, match[2] != undefined ? Number(match[2]) : 10, false);
 
 		bot.deleteMessage(grpId, fromMsgId);
 		bot.deleteMessage(grpId, memMsgId);
@@ -41,9 +51,13 @@ function muteOban(msg, match, ban = false) {
 		bot.deleteMessage(grpId, memMsgId);
 	    }
 	});
+    } else {
+	bot.deleteMessage(grpId, msgId);
     }
 }
 
+// Sends welcome message and restrict users for specific period of time
+// when they join the group.
 bot.on("new_chat_members", (msg) => {
 
     const grpId = msg.chat.id;
@@ -65,10 +79,31 @@ bot.on("new_chat_members", (msg) => {
     restrictMem(grpId, memId, 96);
 });
 
-bot.onText(/(\/mute)\s(\d+)|(\/ban)/, (msg, match) => {
+bot.onText(/(\/mute)\s?(\d+)?|(\/ban)/, (msg, match) => {
 
     if(match[1] === "/mute")
 	muteOban(msg, match);
     else
 	muteOban(msg, match, true);
+});
+
+// Forwards reported message by user (/report) to the mod group
+// alerting all the admins.
+bot.onText(/\/report/, (msg, match) => {
+
+    const grpId = msg.chat.id;
+    if(msg.hasOwnProperty("reply_to_message")) {
+	const repoterId = msg.from.id;
+	const memId = msg.reply_to_message.from.id;
+	const grpId = msg.chat.id;
+	const reMsgId = msg.reply_to_message.message_id;
+
+	if(grpId === botGrpId || reporterId !== memId) {	
+	    bot.forwardMessage(modGrpId, grpId, reMsgId);
+	    bot.sendMessage(grpId, "Reported to admins, thanks.");	
+	}
+    } else {
+	const memMsgId = msg.message_id;
+	bot.deleteMessage(grpId, memMsgId);
+    }	
 });
