@@ -23,28 +23,32 @@ function restrictMem(grpId, memId, time, mute = true) {
 // Bans the user if ban parameter is true, else restricts/mutes the
 // user.
 function muteOban(msg, match, ban = false) {
-    
-    const grpId = msg.chat.id;
-    const msgId = msg.message_id;
 
     if(msg.hasOwnProperty("reply_to_message")) {
-	
+    
+	const forwarded = msg["reply_to_message"].hasOwnProperty("forward_from");
 	const fromId = msg.from.id;
-	const memGrpId = msg.reply_to_message.chat.id;
-	const memMsgId = msg.reply_to_message.message_id; 
+	const grpId = forwarded ? botGrpId : msg.chat.id;
 
-	bot.getChatMember(memGrpId, fromId)
+	bot.getChatMember(grpId, fromId)
 	.then((data) => {
 	    if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
+		
+		const from = forwarded ? "forward_from" : "from";
+
 		const fromMsgId = msg.message_id;
-		const memName = msg.reply_to_message.from.first_name;
-		const memId = msg.reply_to_message.from.id;
+		const memGrpId = msg.reply_to_message.chat.id;
+		const memName = msg.reply_to_message[from].hasOwnProperty("username") ? '@' + msg.reply_to_message[from].username : msg.reply_to_message[from].first_name;
+		const memId = msg.reply_to_message[from].id;
 		const memMsgId = msg.reply_to_message.message_id; 
 
 		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, match[2] != undefined ? Number(match[2]) : 10, false);
 
-		bot.deleteMessage(grpId, fromMsgId);
-		bot.deleteMessage(grpId, memMsgId);
+		if(!forwarded) {
+		    bot.deleteMessage(grpId, fromMsgId);
+		    bot.deleteMessage(grpId, memMsgId);
+		}
+
 		bot.sendMessage(grpId, `${memName} has been ${ban ? "banned" : "muted"}.`);
 
 	    } else {
@@ -62,7 +66,7 @@ bot.on("new_chat_members", (msg) => {
 
     const grpId = msg.chat.id;
     const memId = msg.new_chat_member.id;
-    const memName = msg.new_chat_member.first_name;
+    const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
 
     if(prevMsgId)
 	bot.deleteMessage(grpId, prevMsgId);
