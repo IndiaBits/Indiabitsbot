@@ -1,3 +1,4 @@
+const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
 const token = "TokenGoesHere";
 const bot = new TelegramBot(token, {polling: true});
@@ -110,4 +111,27 @@ bot.onText(/\/report/, (msg, match) => {
 	const memMsgId = msg.message_id;
 	bot.deleteMessage(grpId, memMsgId);
     }	
+});
+
+// Stores messages in txt file for word cloud.
+bot.on('message', (msg) => {
+    console.log(msg);
+    if(msg.chat.id === botGrpId) {
+
+	fs.appendFile('messages.txt', " " + msg.text, (err) => {
+	    if(err) throw err;
+	});
+    }
+});
+
+// Ban user when the message matches the pattern.
+bot.onText(/free[_\s]?signal[sz]?/gi, (msg, match) => {
+
+    const grpId = msg.chat.id;
+    const memId = msg.from.id;
+    const msgId = msg.message_id;
+
+    bot.kickChatMember(grpId, memId);
+    bot.deleteMessage(grpId, msgId);
+
 });
