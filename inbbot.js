@@ -2,6 +2,8 @@ const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
 const token = "TokenGoesHere";
 const bot = new TelegramBot(token, {polling: true});
+const botMessages = require('./msg.js');
+const bm = new botMessages();
 
 let prevMsgId = 0;
 const modGrpId = 0, botGrpId = 0;
@@ -10,7 +12,7 @@ const modGrpId = 0, botGrpId = 0;
 // the user.
 function restrictMem(grpId, memId, time, mute = true) {
     
-    let t = Math.floor((new Date().getTime()) / 1000) + (time * 24 * 60 * 60);
+    let t = Math.floor((new Date().getTime()) / 1000) + Math.floor(time * 24 * 60 * 60);
 
     bot.restrictChatMember(grpId, memId,
 	{"can_send_media_messages": false,
@@ -29,7 +31,7 @@ function muteOban(msg, match, ban = false) {
     
 	const forwarded = msg["reply_to_message"].hasOwnProperty("forward_from");
 	const fromId = msg.from.id;
-	const grpId = forwarded ? botGrpId : msg.chat.id;
+	const grpId = botGrpId;
 
 	bot.getChatMember(grpId, fromId)
 	.then((data) => {
@@ -69,7 +71,7 @@ bot.on("new_chat_members", (msg) => {
     const memId = msg.new_chat_member.id;
     const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
 
-    if(prevMsgId)
+    if(prevMsgId && grpId === botGrpId)
 	bot.deleteMessage(grpId, prevMsgId);
 
     bot.sendMessage(grpId, 
@@ -79,9 +81,9 @@ bot.on("new_chat_members", (msg) => {
 	    "text": "Read Rules", "url" : "telegra.ph/IndiaBits-Rules-09-10"
 	}]]}}
     )
-    .then((data) => {prevMsgId = data.message_id});
+    .then((data) => {if(grpId === botGrpId) prevMsgId = data.message_id});
 
-    restrictMem(grpId, memId, 96);
+    restrictMem(grpId, memId, 3);
 });
 
 bot.onText(/(\/mute)\s?(\d+)?|(\/ban)/, (msg, match) => {
@@ -115,17 +117,21 @@ bot.onText(/\/report/, (msg, match) => {
 
 // Stores messages in txt file for word cloud.
 bot.on('message', (msg) => {
-    console.log(msg);
-    if(msg.chat.id === botGrpId) {
 
-	fs.appendFile('messages.txt', " " + msg.text, (err) => {
-	    if(err) throw err;
-	});
+    let re = /http[s]?/gi;
+
+    if(msg.chat.id === botGrpId) {
+	if(msg.text != undefined && !re.test(msg.text)) {
+	
+	    fs.appendFile('messages.txt', " " + msg.text, (err) => {
+		if(err) throw err;
+	    });
+	}
     }
 });
 
 // Ban user when the message matches the pattern.
-bot.onText(/free[_\s]?signal[sz]?/gi, (msg, match) => {
+bot.onText(/(crypto|free|binance)[_\s]?signal[sz]?/gi, (msg, match) => {
 
     const grpId = msg.chat.id;
     const memId = msg.from.id;
@@ -134,4 +140,42 @@ bot.onText(/free[_\s]?signal[sz]?/gi, (msg, match) => {
     bot.kickChatMember(grpId, memId);
     bot.deleteMessage(grpId, msgId);
 
+});
+
+
+// Tags
+bot.onText(/#(ta|start|dyor|shill|p2p)/gi, (msg, match) => {
+
+    const grpId = msg.chat.id;
+    const msgId = msg.message_id;
+
+    let m = match[1].toLowerCase()
+    let replyMsg = bm[m]();
+     
+    if(msg.hasOwnProperty("reply_to_message")) {
+
+	const targetMsgId = msg.reply_to_message.message_id;
+	bot.sendMessage(grpId, replyMsg, {"reply_to_message_id": targetMsgId, "parse_mode" : "HTML", "disable_web_page_preview" : true});
+	bot.deleteMessage(grpId, msgId);
+    
+    } else {
+	
+	bot.sendMessage(grpId, replyMsg, {"reply_to_message_id": msgId, "parse_mode" : "HTML", "disable_web_page_preview" : true});
+    }
+});
+
+// Mutes member when a banned word is detected.
+bot.on('message', (msg) => {
+
+    const words = bm.badw();
+    const grpId = msg.chat.id;
+    const msgId = msg.message_id;
+    const memId = msg.from.id;
+    const memName = msg.from.hasOwnProperty("username") ? '@' + msg.from.username : msg.from.first_name;
+            
+    if(words.test(msg.text)) {
+	bot.sendMessage(grpId, `${memName} you have been temporarily muted for 10 minutes.\nDo not use foul language in this channel, next time you will be banned permanently`);
+	bot.deleteMessage(grpId, msgId);
+	restrictMem(grpId, memId, 0.007, false);
+    }
 });
