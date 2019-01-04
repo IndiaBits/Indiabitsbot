@@ -1,12 +1,14 @@
 const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
-const token = "TokenGoesHere";
-const bot = new TelegramBot(token, {polling: true});
 const botMessages = require('./msg.js');
+const config = require('./config.js');
+
+const conf = new config();
+const bot = new TelegramBot(conf.token, {polling: true});
 const bm = new botMessages();
 
+const modGrpId = conf.mod, botGrpId = conf.bot;
 let prevMsgId = 0;
-const modGrpId = 0, botGrpId = 0;
 
 // Restricts user if mute parameter is true, else completely mutes
 // the user.
@@ -27,39 +29,40 @@ function restrictMem(grpId, memId, time, mute = true) {
 // user.
 function muteOban(msg, match, ban = false) {
 
+    const grpId = botGrpId;
+    const fromMsgId = msg.message_id;
+    
     if(msg.hasOwnProperty("reply_to_message")) {
     
 	const forwarded = msg["reply_to_message"].hasOwnProperty("forward_from");
 	const fromId = msg.from.id;
-	const grpId = botGrpId;
-
+	
 	bot.getChatMember(grpId, fromId)
 	.then((data) => {
 	    if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
 		
 		const from = forwarded ? "forward_from" : "from";
 
-		const fromMsgId = msg.message_id;
-		const memGrpId = msg.reply_to_message.chat.id;
 		const memName = msg.reply_to_message[from].hasOwnProperty("username") ? '@' + msg.reply_to_message[from].username : msg.reply_to_message[from].first_name;
 		const memId = msg.reply_to_message[from].id;
 		const memMsgId = msg.reply_to_message.message_id; 
+		const t = match[2] != undefined ? Number(match[2]) : 10;
 
-		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, match[2] != undefined ? Number(match[2]) : 10, false);
+		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, t, false);
 
 		if(!forwarded) {
 		    bot.deleteMessage(grpId, fromMsgId);
 		    bot.deleteMessage(grpId, memMsgId);
 		}
 
-		bot.sendMessage(grpId, `${memName} has been ${ban ? "banned" : "muted"}.`);
+		bot.sendMessage(grpId, `${memName} has been ${ban ? "banned" : `muted for ${t} day(s)`}.`);
 
 	    } else {
-		bot.deleteMessage(grpId, memMsgId);
+		bot.deleteMessage(grpId, fromMsgId);
 	    }
 	});
     } else {
-	bot.deleteMessage(grpId, msgId);
+	bot.deleteMessage(grpId, fromMsgId);
     }
 }
 
@@ -86,9 +89,9 @@ bot.on("new_chat_members", (msg) => {
     restrictMem(grpId, memId, 3);
 });
 
-bot.onText(/(\/mute)\s?(\d+)?|(\/ban)/, (msg, match) => {
+bot.onText(/^(\/mute)\s?(\d+)?|(\/ban)$/, (msg, match) => {
 
-    if(match[1] === "/mute")
+    if(/(\/mute)\s?(\d+)?/.test(match[1]))
 	muteOban(msg, match);
     else
 	muteOban(msg, match, true);
@@ -96,7 +99,7 @@ bot.onText(/(\/mute)\s?(\d+)?|(\/ban)/, (msg, match) => {
 
 // Forwards reported message by user (/report) to the mod group
 // alerting all the admins.
-bot.onText(/\/report/, (msg, match) => {
+bot.onText(/^\/report$/, (msg, match) => {
 
     const grpId = msg.chat.id;
     if(msg.hasOwnProperty("reply_to_message")) {
@@ -131,7 +134,7 @@ bot.on('message', (msg) => {
 });
 
 // Ban user when the message matches the pattern.
-bot.onText(/(crypto|free|binance)[_\s]?signal[sz]?/gi, (msg, match) => {
+bot.onText(/(crypto|free|binance)[-_\s]?signal[sz]?/gi, (msg, match) => {
 
     const grpId = msg.chat.id;
     const memId = msg.from.id;
@@ -178,4 +181,13 @@ bot.on('message', (msg) => {
 	bot.deleteMessage(grpId, msgId);
 	restrictMem(grpId, memId, 0.007, false);
     }
+});
+
+// Auto delete t.me links not related to indiabits.
+bot.onText(/(https?:\/\/)?(t|telegram)\.me\/(\w+)/gi, (msg, match) => {
+
+    if(!(/indiabits|IndiaBitsOT|BitcoinIndia/gi.test(match[3]))) {
+	bot.deleteMessage(botGrpId, msg.message_id);
+    }
+    
 });
