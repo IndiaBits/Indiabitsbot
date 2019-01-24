@@ -28,11 +28,15 @@ function Msg() {
 ❌Don't shill just coz you have a bag.</code>
 `;
 
+    this.off = () => `
+Lets take this to @indiabitsot.
+`;
+
     this.ta = () => `
 ➡️ <a href="http://indiabits.in/TA.html"> Technical Analysis Resource List</a>
 `;
 
-    this.badw = () =>  new RegExp(`\\b(loda|chutiya|gaandu|lavda|lavde|randi|gandu|bhenchod|laude|kock|asshole|fuckoff|fucking|lode|chutiye|madarchod|bhenchod|chodu|gaand|bhosdike|anal|anilingus|anus|apeshit|arsehole|asshole|assmunch|bangbros|bareback|barenaked|bastard|bastardo|bastinado|bdsm|beaner|beaners|bimbos|birdlock|bitches|blowjob|blumpkin|bollocks|bondage|boner|boob|boobs|bukkake|bulldyke|bung|bunghole|busty|buttcheeks|butthole|camgirl|camslut|camwhore|cock|cocks|coprolagnia|coprophilia|cornhole|creampie|cum|cumming|cunnilingus|cunt|darkie|deepthroat|dendrophilia|dick|dildo|dingleberry|dingleberries|doggystyle|escort|eunuch|faggot|fecal|felch|fellatio|feltch|femdom|figging|fingerbang|fingering|fisting|humping|incest|intercourse|jigaboo|jiggaboo|jiggerboo|juggs|kinbaku|kinkster|knobbing|milf|missionary|motherfucker|orgy|paedophile|panties|panty|pedobear|pedophile|penis|poontang|punany|poopchute|porno|pornography|pubes|pussy|queaf|queef|quim|raghead|raping|rapist|rectum|sadism|santorum|scat|schlong|scissoring|semen|slut|tits|titties|titty|vagina|xxx|balatkar|beti|bhadva|bhadve|bhandve|bhootni|bhosad|bhosadi|boobe|chakke|chinaal|chinki|chodu|chodu|bhagat|chooche|choochi|choot|choot|chootia|chootiya|chuche|chuchi|chudai|khanaa|chudan|chudai|chut|chut|chut|dhakkan|chut|maarli|chutad|chutadd|chutan|chutia|chutiya|gaand|gaandfat|gaandmasti|gaandufad|gandu|gashti|gasti|ghassa|ghasti|harami|haramzade|hawas|hawas|pujari|hijda|hijra|jhant|jhant|chaatu|jhant|jhantu|kanjar|kamina|aulad|loda|lodu|lund|lund|choos|lund|khajoor|lundtopi|lundure|chut|madar|mooh|mutth|najayaz|najayaz|aulaad|najayaz|paidaish|pataka|patakha|raand|randi|randi|aulad|tatte|bhosad|boba|chusu|chut|tharak|tharki|bc|chuthiyo|chuthiya|chhod|chuthiye|chuthiya|chutiye|chutiya|chutiyo|chhot|chood|chhod|sodagaro|jhhat|bhosdike|chaman)\\b`, 'gi');
+    this.badw = () =>  new RegExp(`\\b(loda|chutiya|gaandu|lavda|lavde|randi|gandu|bhenchod|laude|kock|asshole|fuckoff|lode|chutiye|madarchod|bhenchod|chodu|gaand|bhosdike|anal|anilingus|anus|apeshit|arsehole|asshole|assmunch|bangbros|bareback|barenaked|bastard|bastardo|bastinado|bdsm|beaner|beaners|bimbos|birdlock|bitches|blowjob|blumpkin|bollocks|bondage|boner|boob|boobs|bukkake|bulldyke|bung|bunghole|busty|buttcheeks|butthole|camgirl|camslut|camwhore|cock|cocks|coprolagnia|coprophilia|cornhole|creampie|cum|cumming|cunnilingus|cunt|darkie|deepthroat|dendrophilia|dick|dildo|dingleberry|dingleberries|doggystyle|escort|eunuch|faggot|fecal|felch|fellatio|feltch|femdom|figging|fingerbang|fingering|fisting|humping|incest|intercourse|jigaboo|jiggaboo|jiggerboo|juggs|kinbaku|kinkster|knobbing|milf|missionary|motherfucker|orgy|paedophile|panties|panty|pedobear|pedophile|penis|poontang|punany|poopchute|porno|pornography|pubes|pussy|queaf|queef|quim|raghead|raping|rapist|rectum|sadism|santorum|scat|schlong|scissoring|semen|slut|tits|titties|titty|vagina|balatkar|beti|bhadva|bhadve|bhandve|bhootni|bhosad|bhosadi|boobe|chakke|chinaal|chinki|chodu|chodu|bhagat|chooche|choochi|choot|choot|chootia|chootiya|chuche|chuchi|chudai|khanaa|chudan|chudai|chut|chut|chut|dhakkan|chut|maarli|chutad|chutadd|chutan|chutia|chutiya|gaand|gaandfat|gaandmasti|gaandufad|gandu|gashti|gasti|ghassa|ghasti|harami|haramzade|hawas|hawas|pujari|hijda|hijra|jhant|jhant|chaatu|jhant|jhantu|kanjar|kamina|aulad|loda|lodu|lund|lund|choos|lund|khajoor|lundtopi|lundure|chut|madar|mooh|mutth|najayaz|najayaz|aulaad|najayaz|paidaish|pataka|patakha|raand|randi|randi|aulad|tatte|bhosad|boba|chusu|chut|tharak|tharki|bc|chuthiyo|chuthiya|chhod|chuthiye|chuthiya|chutiye|chutiya|chutiyo|chhot|chood|chhod|sodagaro|jhhat|bhosdike|chaman)\\b`, 'gi');
 
     this.p2p = () => `
 <code>👥 Peer to Peer marketplace connects buyers with sellers directly (like olx) to Buy/Sell Crypto using various methods such as Bank Transfer, Cash, Payment processors, Gift cards and More.
@@ -41,6 +45,8 @@ function Msg() {
 
 ⚠️ Don't forget you'r due diligence </code>
 `;
+
+    this.commonWords = () => new RegExp(`\\b(time|person|year|way|day|is|thing|man|world|life|hand|part|child|eye|woman|place|work|week|case|point|government|company|number|group|problem|fact|be|have|do|say|get|make|go|know|take|see|come|think|look|want|give|use|find|tell|ask|work|seem|feel|try|leave|call|good|new|first|last|long|great|little|own|other|old|right|big|high|different|small|large|next|early|young|important|few|public|bad|same|able|to|of|in|for|on|with|at|by|from|up|about|into|over|after|the|and|a|that|I|it|not|he|as|you|this|but|his|they|her|she|or|an|will|my|one|all|would|there|their)\\b`,'gi');
 
 }
 

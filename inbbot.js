@@ -122,10 +122,12 @@ bot.onText(/^\/report$/, (msg, match) => {
 bot.on('message', (msg) => {
 
     let re = /http[s]?/gi;
-
+		
     if(msg.chat.id === botGrpId) {
 	if(msg.text != undefined && !re.test(msg.text)) {
-	
+
+        msg.text = msg.text.replace(bm.commonWords(), '');
+
 	    fs.appendFile('messages.txt', " " + msg.text, (err) => {
 		if(err) throw err;
 	    });
@@ -147,7 +149,7 @@ bot.onText(/(crypto|free|binance)[-_\s]?signal[sz]?/gi, (msg, match) => {
 
 
 // Tags
-bot.onText(/#(ta|start|dyor|shill|p2p)/gi, (msg, match) => {
+bot.onText(/^#(ta|start|dyor|shill|p2p|off)$/gi, (msg, match) => {
 
     const grpId = msg.chat.id;
     const msgId = msg.message_id;
