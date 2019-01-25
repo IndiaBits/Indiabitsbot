@@ -193,3 +193,9 @@ bot.onText(/(https?:\/\/)?(t|telegram)\.me\/(\w+)/gi, (msg, match) => {
     }
     
 });
+
+// Auto delete documents
+bot.on('document', (msg) => {
+    
+    bot.deleteMessage(msg.chat.id, msg.message_id);
+});
