@@ -2,10 +2,16 @@ const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
 const botMessages = require('./msg.js');
 const config = require('./config.js');
+const sql = require('sqlite3');
 
 const conf = new config();
 const bot = new TelegramBot(conf.token, {polling: true});
 const bm = new botMessages();
+
+const db = new sql.Database(conf.db, (err) => {
+    if(err)
+        return console.log(err.message);
+});
 
 const modGrpId = conf.mod, botGrpId = conf.bot;
 let prevMsgId = 0;
@@ -77,16 +83,25 @@ bot.on("new_chat_members", (msg) => {
     if(prevMsgId && grpId === botGrpId)
 	bot.deleteMessage(grpId, prevMsgId);
 
-    bot.sendMessage(grpId, 
-	`Welcome ${memName}!, This chat is about Indian crypto community and everything related to it.\nPlease read the group rules before posting.`,
-	{"reply_markup" : {
-	    "inline_keyboard" : [[{
-	    "text": "Read Rules", "url" : "telegra.ph/IndiaBits-Rules-09-10"
-	}]]}}
-    )
-    .then((data) => {if(grpId === botGrpId) prevMsgId = data.message_id});
+    let query = `select * from users where tid = ? and verified = 1`;
+    db.get(query, [memId], (err, result) => {
+        if(err)
+            console.log(err.message);
+        if(!result) {
+            query = `insert into users(tid) values(${memId})`;
+            db.all(query, [], (err, result) => {
+                if(err)
+                    console.log(err.message);
+                
+                bot.sendMessage(grpId, 
+	            `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
+                );
 
-    restrictMem(grpId, memId, 3);
+                restrictMem(grpId, memId, 600, false);
+            });
+        }
+
+    });
 });
 
 bot.onText(/^(\/mute)\s?(\d+)?|(\/ban)$/, (msg, match) => {
@@ -171,7 +186,7 @@ bot.onText(/^#(ta|start|dyor|shill|p2p|off)$/gi, (msg, match) => {
 
 // Mutes member when a banned word is detected.
 bot.on('message', (msg) => {
-
+      
     const words = bm.badw();
     const grpId = msg.chat.id;
     const msgId = msg.message_id;
@@ -196,6 +211,140 @@ bot.onText(/(https?:\/\/)?(t|telegram)\.me\/(\w+)/gi, (msg, match) => {
 
 // Auto delete documents
 bot.on('document', (msg) => {
+    if(msg.document.mime_type != "video/mp4")
+        bot.deleteMessage(msg.chat.id, msg.message_id);
+});
+
+bot.onText(/\/start/, (msg, match) => {
+    if(msg.chat.type === "private") {
+       
+        bot.sendMessage(msg.chat.id, 
+            `Welcome ${msg.from.first_name}!, Indiabits is about Indian crypto community and everything related to it.\n\nℹ️ Please read the group @indiabitsrules before posting.\n\nTo verify yourself please click here 👉 /verify.`,
+          );
+    }
+});
+
+bot.onText(/\/verify/gi, (msg, match) => {
+
+    if(msg.chat.type === "private") {
+        bot.sendMessage(msg.chat.id, "Please click the button below to verify yourself.",
+            {"reply_markup" : {
+                "inline_keyboard" : [[{
+                    "text" : "Verify", "callback_data" : msg.from.id
+                }]]}}
+        );
+
+    } else {
+        bot.deleteMessage(botGrpId, msg.message_id);
+    }
+
+});
+
+bot.on('callback_query', (msg) => {
+   
+    if(msg.message.text.includes("verify")) {
+        let query = `select * from users where tid = ?`;
+  
+        db.get(query, [msg.data], (err, result) => {
+            if(err)
+                console.log(err);
+            else {
+                if(result == undefined || result.verified == 1) {
+                    bot.editMessageText("You are already verified.",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id}); 
+                    bot.answerCallbackQuery(msg.id);
+                } else {
+                    query = `update users set verified = ? where tid = ?`;
+                    db.run(query, [1,msg.data], (err) => {
+                        if(err)
+                            console.log(err);
+                        else {
+                                    bot.editMessageText("✅ You are now verified and can send messages in @Indiabits",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id}); 
+                                    bot.answerCallbackQuery(msg.id);
+                                    bot.restrictChatMember(conf.bot, msg.data,
+                                        {"can_send_media_messages": true,
+                                         "can_send_other_messages": true,
+                                         "can_add_web_page_previews": true,
+                                         "can_send_messages": true,
+                                         "until_date": 0
+                                        });
+                    }
+                    });
+                }
+            }
+            
+        });
+    }   
+});
+
+
+bot.onText(/\/warn/gi, (msg, match) => {
+
+    if(msg.hasOwnProperty("reply_to_message")) {
+
+        const fromId = msg.from.id;
+
+        bot.getChatMember(botGrpId, fromId)
+        .then((data) => {
+                if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
+                    
+                    const memId = msg.reply_to_message.from.id;
+                    const memMsgId = msg.reply_to_message.message_id;
+                    const memName = msg.reply_to_message.from.first_name;
+
+                    let query = 'select * from users where tid = ?';
+
+                    db.get(query, [memId], (err, result) => {
+
+                        if(err)
+                            console.log(err);
+                        else {
+                        
+                            if(result) {
+                                if(result.warn == 2) {
+                                    bot.kickChatMember(botGrpId, memId);
+                                    bot.sendMessage(botGrpId, `${memName} has been kicked.`);
+                                    
+                                    query = 'update users set warn = 0 where tid = ?';
+
+                                    db.all(query, [memId], (err) => {
+                                        if(err)
+                                            console.log(err);
+                                    });
+
+                                } else {
+                                    query = 'update users set warn = warn + 1 where tid = ?';
+
+                                    db.all(query, [memId], (err) => {
+                                        if(err)
+                                            console.log(err);
+                                        else {
+                                            let warns = result.warn + 1;
+                                            bot.sendMessage(botGrpId, `${memName} has been warned (${warns}/3).`);
+                                }});
+                                
+                                }
+
+                            } else {
+
+                                query = 'insert into users(tid,warn) values(?,?)';
+
+                                db.all(query, [memId, 1], (err) => {
+                                    if(err)
+                                        console.log(err);
+                                    else 
+                                        bot.sendMessage(botGrpId, `${memName} has been warned (1/3).`);
     
-    bot.deleteMessage(msg.chat.id, msg.message_id);
+                                });
+
+                            }                            
+                        }
+                    });
+                    bot.deleteMessage(botGrpId, memMsgId);
+
+                } else {
+                    bot.sendMessage(modGrpId, botGrpId, msg.reply_to_message.message_id);
+                }
+        });
+    }
+    bot.deleteMessage(botGrpId, msg.message_id);
 });
