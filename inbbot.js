@@ -13,8 +13,7 @@ const db = new sql.Database(conf.db, (err) => {
         return console.log(err.message);
 });
 
-const modGrpId = conf.mod, botGrpId = conf.bot;
-let prevMsgId = 0;
+const modGrpId = conf.mod, botGrpId = conf.bot, offGrpId = conf.off;
 
 // Restricts user if mute parameter is true, else completely mutes
 // the user.
@@ -77,32 +76,30 @@ function muteOban(msg, match, ban = false) {
 bot.on("new_chat_members", (msg) => {
 
     const grpId = msg.chat.id;
-    const memId = msg.new_chat_member.id;
-    const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
 
-    if(prevMsgId && grpId === botGrpId)
-	bot.deleteMessage(grpId, prevMsgId);
+    if(grpId === botGrpId) {
+        const memId = msg.new_chat_member.id;
+        const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
 
-    let query = `select * from users where tid = ? and verified = 1`;
-    db.get(query, [memId], (err, result) => {
-        if(err)
-            console.log(err.message);
-        if(!result) {
-            query = `insert into users(tid) values(${memId})`;
-            db.all(query, [], (err, result) => {
-                if(err)
-                    console.log(err.message);
+        let query = `select * from users where tid = ? and verified = 1`;
+        db.get(query, [memId], (err, result) => {
+            if(err)
+                console.log(err.message);
+            if(!result) {
+                query = `insert into users(tid) values(${memId})`;
+                db.all(query, [], (err, result) => {
+                    if(err)
+                        console.log(err.message);
                 
-                bot.sendMessage(grpId, 
-	            `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
-                );
+                    bot.sendMessage(grpId, 
+	                `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
+                    );
 
-                restrictMem(grpId, memId, 600, false);
-            });
-        }
-
-    });
-});
+                    restrictMem(grpId, memId, 600, false);
+                });
+            }
+        });
+}});
 
 bot.onText(/^(\/mute)\s?(\d+)?|(\/ban)$/, (msg, match) => {
 
@@ -138,15 +135,17 @@ bot.on('message', (msg) => {
 
     let re = /http[s]?/gi;
 		
-    if(msg.chat.id === botGrpId) {
-	if(msg.text != undefined && !re.test(msg.text)) {
+    if(msg.chat.id === botGrpId || msg.chat.id === offGrpId) {
+	    if(msg.text != undefined && !re.test(msg.text)) {
 
-        msg.text = msg.text.replace(bm.commonWords(), '');
+            let tmp = msg.text.replace(bm.commonWords(), '');
+            
+            let filename = msg.chat.id === botGrpId ? "messages.txt" : "offmessages.txt";
 
-	    fs.appendFile('messages.txt', " " + msg.text, (err) => {
-		if(err) throw err;
-	    });
-	}
+	        fs.appendFile(filename, " " + tmp, (err) => {
+		    if(err) throw err;
+	        });
+	    }
     }
 });
 
@@ -186,17 +185,21 @@ bot.onText(/^#(ta|start|dyor|shill|p2p|off)$/gi, (msg, match) => {
 
 // Mutes member when a banned word is detected.
 bot.on('message', (msg) => {
-      
+
     const words = bm.badw();
     const grpId = msg.chat.id;
-    const msgId = msg.message_id;
-    const memId = msg.from.id;
-    const memName = msg.from.hasOwnProperty("username") ? '@' + msg.from.username : msg.from.first_name;
+    
+    if(grpId == botGrpId) {
+    
+        const msgId = msg.message_id;
+        const memId = msg.from.id;
+        const memName = msg.from.hasOwnProperty("username") ? '@' + msg.from.username : msg.from.first_name;
             
-    if(words.test(msg.text)) {
-	bot.sendMessage(grpId, `${memName} you have been temporarily muted for 10 minutes.\nDo not use foul language in this channel, next time you will be banned permanently`);
-	bot.deleteMessage(grpId, msgId);
-	restrictMem(grpId, memId, 0.007, false);
+        if(words.test(msg.text)) {
+	        bot.sendMessage(grpId, `${memName} you have been temporarily muted for 10 minutes.\nDo not use foul language in this channel, next time you will be banned permanently`);
+	        bot.deleteMessage(grpId, msgId);
+	        restrictMem(grpId, memId, 0.007, false);
+        }
     }
 });
 
@@ -277,8 +280,10 @@ bot.on('callback_query', (msg) => {
 });
 
 
-bot.onText(/\/warn/gi, (msg, match) => {
+bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
 
+    const grpId = msg.chat.id;
+    console.log(match);
     if(msg.hasOwnProperty("reply_to_message")) {
 
         const fromId = msg.from.id;
@@ -289,7 +294,8 @@ bot.onText(/\/warn/gi, (msg, match) => {
                     
                     const memId = msg.reply_to_message.from.id;
                     const memMsgId = msg.reply_to_message.message_id;
-                    const memName = msg.reply_to_message.from.first_name;
+                    const memName = msg.reply_to_message.from.hasOwnProperty("username")? '@' + msg.reply_to_message.from.username : msg.reply_to_message.from.first_name;
+                    const reason = match[1] != undefined ? 'Reason: ' + match[1] : 'Reason: not specified';
 
                     let query = 'select * from users where tid = ?';
 
@@ -301,8 +307,8 @@ bot.onText(/\/warn/gi, (msg, match) => {
                         
                             if(result) {
                                 if(result.warn == 2) {
-                                    bot.kickChatMember(botGrpId, memId);
-                                    bot.sendMessage(botGrpId, `${memName} has been kicked.`);
+                                    bot.kickChatMember(grpId, memId);
+                                    bot.sendMessage(grpId, `${memName} has been kicked.`);
                                     
                                     query = 'update users set warn = 0 where tid = ?';
 
@@ -319,7 +325,7 @@ bot.onText(/\/warn/gi, (msg, match) => {
                                             console.log(err);
                                         else {
                                             let warns = result.warn + 1;
-                                            bot.sendMessage(botGrpId, `${memName} has been warned (${warns}/3).`);
+                                            bot.sendMessage(grpId, `${memName} has been warned (${warns}/3).\n${reason}`);
                                 }});
                                 
                                 }
@@ -332,19 +338,18 @@ bot.onText(/\/warn/gi, (msg, match) => {
                                     if(err)
                                         console.log(err);
                                     else 
-                                        bot.sendMessage(botGrpId, `${memName} has been warned (1/3).`);
+                                        bot.sendMessage(grpId, `${memName} has been warned (1/3).\n${reason}`);
     
                                 });
 
                             }                            
                         }
                     });
-                    bot.deleteMessage(botGrpId, memMsgId);
-
+                    bot.deleteMessage(grpId, memMsgId);
                 } else {
-                    bot.sendMessage(modGrpId, botGrpId, msg.reply_to_message.message_id);
+                    bot.sendMessage(modGrpId, grpId, msg.reply_to_message.message_id);
                 }
         });
     }
-    bot.deleteMessage(botGrpId, msg.message_id);
+    bot.deleteMessage(grpId, msg.message_id);
 });
