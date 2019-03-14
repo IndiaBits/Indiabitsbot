@@ -71,11 +71,13 @@ function muteOban(msg, match, ban = false) {
     }
 }
 
-// Sends welcome message and restrict users for specific period of time
+// Sends welcome message and restrict users until they do not verify themselves 
 // when they join the group.
 bot.on("new_chat_members", (msg) => {
 
     const grpId = msg.chat.id;
+    
+    bot.deleteMessage(grpId, msg.message_id);
 
     if(grpId === botGrpId) {
         const memId = msg.new_chat_member.id;
@@ -93,9 +95,15 @@ bot.on("new_chat_members", (msg) => {
                 
                     bot.sendMessage(grpId, 
 	                `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
-                    );
+                    )
+                    .then((msg) => {
 
-                    restrictMem(grpId, memId, 600, false);
+                        restrictMem(grpId, memId, 600, false);
+                    
+                        setTimeout(() => {
+                            bot.deleteMessage(grpId, msg.message_id);
+                        },  120000);
+                    });
                 });
             }
         });
@@ -132,7 +140,7 @@ bot.onText(/^\/report$/, (msg, match) => {
 
 // Stores messages in txt file for word cloud.
 bot.on('message', (msg) => {
-
+        
     let re = /http[s]?/gi;
 		
     if(msg.chat.id === botGrpId || msg.chat.id === offGrpId) {
