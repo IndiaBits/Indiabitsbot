@@ -46,7 +46,7 @@ Lets take this to @indiabitsot.
 ⚠️ Don't forget you'r due diligence </code>
 `;
 
-    this.commonWords = () => new RegExp(`\\b(time|person|year|way|day|is|thing|man|world|life|hand|part|child|eye|woman|place|work|week|case|point|government|company|number|group|problem|fact|be|have|do|say|get|make|go|know|take|see|come|think|look|want|give|use|find|tell|ask|work|seem|feel|try|leave|call|good|new|first|last|long|great|little|own|other|old|right|big|high|different|small|large|next|early|young|important|few|public|bad|same|able|to|of|in|for|on|with|at|by|from|up|about|into|over|after|the|and|a|that|I|it|not|he|as|you|this|but|his|they|her|she|or|an|will|my|one|all|would|there|their)\\b`,'gi');
+    this.commonWords = () => new RegExp(`\\b(lol|verify|time|person|year|way|day|is|thing|man|world|life|hand|part|child|eye|woman|place|work|week|case|point|government|company|number|group|problem|fact|be|have|do|say|get|make|go|know|take|see|come|think|look|want|give|use|find|tell|ask|work|seem|feel|try|leave|call|good|new|first|last|long|great|little|own|other|old|right|big|high|different|small|large|next|early|young|important|few|public|bad|same|able|to|of|in|for|on|with|at|by|from|up|about|into|over|after|the|and|a|that|I|it|not|he|as|you|this|but|his|they|her|she|or|an|will|my|one|all|would|there|their)\\b`,'gi');
 
 }
 

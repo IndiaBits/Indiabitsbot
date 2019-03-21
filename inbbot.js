@@ -102,7 +102,7 @@ bot.on("new_chat_members", (msg) => {
                     
                         setTimeout(() => {
                             bot.deleteMessage(grpId, msg.message_id);
-                        },  120000);
+                        },  300000);
                     });
                 });
             }
