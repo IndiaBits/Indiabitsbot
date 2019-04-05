@@ -76,8 +76,6 @@ function muteOban(msg, match, ban = false) {
 bot.on("new_chat_members", (msg) => {
 
     const grpId = msg.chat.id;
-    
-    bot.deleteMessage(grpId, msg.message_id);
 
     if(grpId === botGrpId) {
         const memId = msg.new_chat_member.id;
@@ -360,4 +358,47 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
         });
     }
     bot.deleteMessage(grpId, msg.message_id);
+});
+
+
+// Allows users to rate each other.
+bot.onText(/^([-+]1)$/, (msg, match) => {
+    
+    const grpId = msg.chat.id;
+
+    if(grpId == botGrpId || grpId == offGrpId) {
+        if(msg.hasOwnProperty("reply_to_message")) {
+            const num = Number(match[0]);
+            const targetUser = msg.reply_to_message.from.id;
+            const memName = msg.reply_to_message.from.hasOwnProperty("username")? '@' + msg.reply_to_message.from.username : msg.reply_to_message.from.first_name;
+
+            let query = 'select points from users where tid = ?';
+
+            db.get(query, [targetUser], (err, result) => {
+                if(err)
+                    console.log(err)
+                else {
+                    if(result) {
+                        query = 'update users set points = points + ? where tid = ?';
+                        db.all(query, [num, targetUser], (err) => {
+                            if(err)
+                                console.log(err);
+                            else {
+                                bot.sendMessage(grpId,`${memName} now has ${result.points + num} points.`);
+                            }
+                        });
+                    } else {
+                        query = 'insert into users(tid, verified, warn, points) values(?,?,?,?)';
+                        db.all(query, [targetUser, 1, 0, num], (err) => {
+                            if(err)
+                                console.log(err);
+                            else { 
+                                bot.sendMessage(grpId,`${memName} now has ${0 + num} points.`);
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
 });
