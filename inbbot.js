@@ -1,24 +1,27 @@
 const fs = require('fs');
+
 const TelegramBot = require('node-telegram-bot-api');
 const botMessages = require('./msg.js');
 const config = require('./config.js');
 const sql = require('sqlite3');
 
+
 const conf = new config();
 const bot = new TelegramBot(conf.token, {polling: true});
 const bm = new botMessages();
+
 
 const db = new sql.Database(conf.db, (err) => {
     if(err)
         return console.log(err.message);
 });
 
-const modGrpId = conf.mod, botGrpId = conf.bot, offGrpId = conf.off;
+const modGrpId = conf.mod, botGrpId = conf.bot, offGrpId = conf.off, abnuxGrpId = conf.abnux;
 
 // Restricts user if mute parameter is true, else completely mutes
 // the user.
 function restrictMem(grpId, memId, time, mute = true) {
-    
+
     let t = Math.floor((new Date().getTime()) / 1000) + Math.floor(time * 24 * 60 * 60);
 
     bot.restrictChatMember(grpId, memId,
@@ -36,21 +39,21 @@ function muteOban(msg, match, ban = false) {
 
     const grpId = botGrpId;
     const fromMsgId = msg.message_id;
-    
+
     if(msg.hasOwnProperty("reply_to_message")) {
-    
+
 	const forwarded = msg["reply_to_message"].hasOwnProperty("forward_from");
 	const fromId = msg.from.id;
-	
+
 	bot.getChatMember(grpId, fromId)
 	.then((data) => {
 	    if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
-		
+
 		const from = forwarded ? "forward_from" : "from";
 
 		const memName = msg.reply_to_message[from].hasOwnProperty("username") ? '@' + msg.reply_to_message[from].username : msg.reply_to_message[from].first_name;
 		const memId = msg.reply_to_message[from].id;
-		const memMsgId = msg.reply_to_message.message_id; 
+		const memMsgId = msg.reply_to_message.message_id;
 		const t = match[2] != undefined ? Number(match[2]) : 10;
 
 		ban ? bot.kickChatMember(grpId, memId) : restrictMem(grpId, memId, t, false);
@@ -71,41 +74,41 @@ function muteOban(msg, match, ban = false) {
     }
 }
 
-// Sends welcome message and restrict users until they do not verify themselves 
+// Sends welcome message and restrict users until they do not verify themselves
 // when they join the group.
-bot.on("new_chat_members", (msg) => {
-
-    const grpId = msg.chat.id;
-
-    if(grpId === botGrpId) {
-        const memId = msg.new_chat_member.id;
-        const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
-
-        let query = `select * from users where tid = ? and verified = 1`;
-        db.get(query, [memId], (err, result) => {
-            if(err)
-                console.log(err.message);
-            if(!result) {
-                query = `insert into users(tid) values(${memId})`;
-                db.all(query, [], (err, result) => {
-                    if(err)
-                        console.log(err.message);
-                
-                    bot.sendMessage(grpId, 
-	                `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
-                    )
-                    .then((msg) => {
-
-                        restrictMem(grpId, memId, 600, false);
-                    
-                        setTimeout(() => {
-                            bot.deleteMessage(grpId, msg.message_id);
-                        },  300000);
-                    });
-                });
-            }
-        });
-}});
+//bot.on("new_chat_members", (msg) => {
+//
+//    const grpId = msg.chat.id;
+//
+//    if(grpId === botGrpId) {
+//        const memId = msg.new_chat_member.id;
+//        const memName = msg.new_chat_member.hasOwnProperty("username") ? '@' + msg.new_chat_member.username : msg.new_chat_member.first_name;
+//
+//        let query = `select * from users where tid = ? and verified = 1`;
+//        db.get(query, [memId], (err, result) => {
+//            if(err)
+//                console.log(err.message);
+//            if(!result) {
+//                query = `insert into users(tid) values(${memId})`;
+//                db.all(query, [], (err, result) => {
+//                    if(err)
+//                        console.log(err.message);
+//
+//                    bot.sendMessage(grpId,
+//	                `Welcome ${memName}!, Please send a '/verify' message to @indiabitsbot to prove that you're a human. Once done, you'll be able to send messages in this group.`,
+//                    )
+//                   .then((msg) => {
+//
+//                       restrictMem(grpId, memId, 600, false);
+//
+//                        setTimeout(() => {
+//                            bot.deleteMessage(grpId, msg.message_id);
+//                        },  600000);
+//                    });
+//                });
+//            }
+//        });
+//}});
 
 bot.onText(/^(\/mute)\s?(\d+)?|(\/ban)$/, (msg, match) => {
 
@@ -126,27 +129,27 @@ bot.onText(/^\/report$/, (msg, match) => {
 	const grpId = msg.chat.id;
 	const reMsgId = msg.reply_to_message.message_id;
 
-	if(grpId === botGrpId || reporterId !== memId) {	
+	if(grpId === botGrpId || reporterId !== memId) {
 	    bot.forwardMessage(modGrpId, grpId, reMsgId);
-	    bot.sendMessage(grpId, "Reported to admins, thanks.");	
+	    bot.sendMessage(grpId, "Reported to admins, thanks.");
 	}
     } else {
 	const memMsgId = msg.message_id;
 	bot.deleteMessage(grpId, memMsgId);
-    }	
+    }
 });
 
 // Stores messages in txt file for word cloud.
 bot.on('message', (msg) => {
-        
+
     let re = /http[s]?/gi;
-		
-    if(msg.chat.id === botGrpId || msg.chat.id === offGrpId) {
+
+    if(msg.chat.id === botGrpId || msg.chat.id === offGrpId || msg.chat.id === abnuxGrpId) {
 	    if(msg.text != undefined && !re.test(msg.text)) {
 
             let tmp = msg.text.replace(bm.commonWords(), '');
-            
-            let filename = msg.chat.id === botGrpId ? "messages.txt" : "offmessages.txt";
+
+            let filename = msg.chat.id === botGrpId ? "messages.txt" : msg.chat.id === offGrpId ? "offmessages.txt" : "abnuxmessages.txt";
 
 	        fs.appendFile(filename, " " + tmp, (err) => {
 		    if(err) throw err;
@@ -168,23 +171,29 @@ bot.onText(/(crypto|free|binance)[-_\s]?signal[sz]?/gi, (msg, match) => {
 });
 
 
+
+//halving
+
+
+
+
 // Tags
-bot.onText(/^#(ta|start|dyor|shill|p2p|off)$/gi, (msg, match) => {
+bot.onText(/^#(ta|start|dyor|shill|p2p|off|offtopic|discord|tax|cryptotax|reminder|commands|quality|google)$/gi, (msg, match) => {
 
     const grpId = msg.chat.id;
     const msgId = msg.message_id;
 
     let m = match[1].toLowerCase()
     let replyMsg = bm[m]();
-     
+
     if(msg.hasOwnProperty("reply_to_message")) {
 
 	const targetMsgId = msg.reply_to_message.message_id;
 	bot.sendMessage(grpId, replyMsg, {"reply_to_message_id": targetMsgId, "parse_mode" : "HTML", "disable_web_page_preview" : true});
 	bot.deleteMessage(grpId, msgId);
-    
+
     } else {
-	
+
 	bot.sendMessage(grpId, replyMsg, {"reply_to_message_id": msgId, "parse_mode" : "HTML", "disable_web_page_preview" : true});
     }
 });
@@ -194,13 +203,13 @@ bot.on('message', (msg) => {
 
     const words = bm.badw();
     const grpId = msg.chat.id;
-    
+
     if(grpId == botGrpId) {
-    
+
         const msgId = msg.message_id;
         const memId = msg.from.id;
         const memName = msg.from.hasOwnProperty("username") ? '@' + msg.from.username : msg.from.first_name;
-            
+
         if(words.test(msg.text)) {
 	        bot.sendMessage(grpId, `${memName} you have been temporarily muted for 10 minutes.\nDo not use foul language in this channel, next time you will be banned permanently`);
 	        bot.deleteMessage(grpId, msgId);
@@ -215,7 +224,7 @@ bot.onText(/(https?:\/\/)?(t|telegram)\.me\/(\w+)/gi, (msg, match) => {
     if(!(/indiabits|IndiaBitsOT|BitcoinIndia/gi.test(match[3]))) {
 	bot.deleteMessage(botGrpId, msg.message_id);
     }
-    
+
 });
 
 // Auto delete documents
@@ -226,8 +235,8 @@ bot.on('document', (msg) => {
 
 bot.onText(/\/start/, (msg, match) => {
     if(msg.chat.type === "private") {
-       
-        bot.sendMessage(msg.chat.id, 
+
+        bot.sendMessage(msg.chat.id,
             `Welcome ${msg.from.first_name}!, Indiabits is about Indian crypto community and everything related to it.\n\nℹ️ Please read the group @indiabitsrules before posting.\n\nTo verify yourself please click here 👉 /verify.`,
           );
     }
@@ -250,16 +259,16 @@ bot.onText(/\/verify/gi, (msg, match) => {
 });
 
 bot.on('callback_query', (msg) => {
-   
+
     if(msg.message.text.includes("verify")) {
         let query = `select * from users where tid = ?`;
-  
+
         db.get(query, [msg.data], (err, result) => {
             if(err)
                 console.log(err);
             else {
                 if(result == undefined || result.verified == 1) {
-                    bot.editMessageText("You are already verified.",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id}); 
+                    bot.editMessageText("You are already verified.",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id});
                     bot.answerCallbackQuery(msg.id);
                 } else {
                     query = `update users set verified = ? where tid = ?`;
@@ -267,7 +276,7 @@ bot.on('callback_query', (msg) => {
                         if(err)
                             console.log(err);
                         else {
-                                    bot.editMessageText("✅ You are now verified and can send messages in @Indiabits",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id}); 
+                                    bot.editMessageText("✅ You are now verified and can send messages in @Indiabits",{"chat_id":msg.message.chat.id, "message_id":msg.message.message_id});
                                     bot.answerCallbackQuery(msg.id);
                                     bot.restrictChatMember(conf.bot, msg.data,
                                         {"can_send_media_messages": true,
@@ -280,9 +289,9 @@ bot.on('callback_query', (msg) => {
                     });
                 }
             }
-            
+
         });
-    }   
+    }
 });
 
 
@@ -297,7 +306,7 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
         bot.getChatMember(botGrpId, fromId)
         .then((data) => {
                 if(data.status === "creator" || data.status === "administrator" && data.can_restrict_members) {
-                    
+
                     const memId = msg.reply_to_message.from.id;
                     const memMsgId = msg.reply_to_message.message_id;
                     const memName = msg.reply_to_message.from.hasOwnProperty("username")? '@' + msg.reply_to_message.from.username : msg.reply_to_message.from.first_name;
@@ -310,12 +319,12 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
                         if(err)
                             console.log(err);
                         else {
-                        
+
                             if(result) {
                                 if(result.warn == 2) {
                                     bot.kickChatMember(grpId, memId);
                                     bot.sendMessage(grpId, `${memName} has been kicked.`);
-                                    
+
                                     query = 'update users set warn = 0 where tid = ?';
 
                                     db.all(query, [memId], (err) => {
@@ -333,7 +342,7 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
                                             let warns = result.warn + 1;
                                             bot.sendMessage(grpId, `${memName} has been warned (${warns}/3).\n${reason}`);
                                 }});
-                                
+
                                 }
 
                             } else {
@@ -343,12 +352,12 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
                                 db.all(query, [memId, 1], (err) => {
                                     if(err)
                                         console.log(err);
-                                    else 
+                                    else
                                         bot.sendMessage(grpId, `${memName} has been warned (1/3).\n${reason}`);
-    
+
                                 });
 
-                            }                            
+                            }
                         }
                     });
                     bot.deleteMessage(grpId, memMsgId);
@@ -363,7 +372,7 @@ bot.onText(/\/warn\s?(\w.+)?/gi, (msg, match) => {
 
 // Allows users to rate each other.
 bot.onText(/^([-+]1)$/, (msg, match) => {
-    
+
     const grpId = msg.chat.id;
 
     if(grpId == botGrpId || grpId == offGrpId) {
@@ -392,7 +401,7 @@ bot.onText(/^([-+]1)$/, (msg, match) => {
                         db.all(query, [targetUser, 1, 0, num], (err) => {
                             if(err)
                                 console.log(err);
-                            else { 
+                            else {
                                 bot.sendMessage(grpId,`${memName} now has ${0 + num} points.`);
                             }
                         });
